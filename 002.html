@@ -1,0 +1,356 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TechBrief Trainer (Reference Mode)</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <style>
+        body { font-family: 'Segoe UI', Roboto, sans-serif; }
+        .blur-text { filter: blur(5px); user-select: none; transition: filter 0.3s ease; }
+        .unblur-text { filter: blur(0); user-select: text; transition: filter 0.3s ease; }
+        .fade-in { animation: fadeIn 0.5s ease-in; }
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+        /* 自定義捲軸樣式，讓參考文章區更好看 */
+        .custom-scrollbar::-webkit-scrollbar { width: 6px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: #f1f1f1; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+    </style>
+</head>
+<body class="bg-gray-100 min-h-screen text-gray-800">
+
+    <nav class="bg-slate-900 text-white p-4 shadow-lg sticky top-0 z-50">
+        <div class="max-w-4xl mx-auto flex justify-between items-center">
+            <h1 class="text-xl font-bold tracking-wider"><i class="fas fa-terminal mr-2 text-green-400"></i>TechBrief <span class="text-gray-400 text-sm font-normal">| Random Mode</span></h1>
+            <span class="text-xs bg-blue-600 px-3 py-1 rounded-full font-bold">V 1.3</span>
+        </div>
+    </nav>
+
+    <div class="max-w-3xl mx-auto mt-12 p-4 mb-20">
+
+        <div id="step-start" class="bg-white p-10 rounded-xl shadow-lg fade-in text-center">
+            <div class="mb-8">
+                <div class="inline-block p-6 rounded-full bg-blue-50 mb-4 animate-bounce">
+                    <i class="fas fa-random text-5xl text-blue-600"></i>
+                </div>
+                <h2 class="text-3xl font-bold text-slate-800 mb-2">Daily Standup Challenge</h2>
+                <p class="text-gray-500">The system will randomly select a technical topic for you.</p>
+            </div>
+            
+            <button onclick="startRandomSession()" class="bg-blue-600 hover:bg-blue-700 text-white text-xl font-bold px-12 py-5 rounded-full shadow-xl transform hover:scale-105 transition duration-200">
+                Start Mission <i class="fas fa-rocket ml-2"></i>
+            </button>
+            
+            <p class="text-xs text-gray-400 mt-6">Includes topics: Backend, API, Database, DevOps, Soft Skills</p>
+        </div>
+
+        <div id="step-listening" class="bg-white p-6 rounded-xl shadow-lg fade-in hidden">
+            <div class="flex justify-between items-center mb-4">
+                <h2 class="text-xl font-bold text-slate-800" id="currentTitle">Topic Title</h2>
+                <button onclick="location.reload()" class="text-sm text-gray-400 hover:text-gray-600">Exit</button>
+            </div>
+            
+            <div class="relative bg-gray-100 p-6 rounded-lg border min-h-[12rem] mb-6 group">
+                <button onclick="toggleBlur()" class="absolute top-2 right-2 z-10 bg-white p-2 rounded-full shadow hover:bg-gray-100 text-gray-500 hover:text-blue-600 transition" title="Toggle Text Visibility">
+                    <i id="eyeIcon" class="fas fa-eye"></i>
+                </button>
+                <p id="displayText" class="blur-text text-gray-600 leading-relaxed text-lg font-serif transition-all"></p>
+                <div id="blurOverlay" class="absolute inset-0 flex items-center justify-center pointer-events-none">
+                    <i class="fas fa-headphones-alt text-5xl text-gray-300 opacity-50"></i>
+                </div>
+            </div>
+
+            <div class="flex justify-center gap-4">
+                <button onclick="playAudio()" class="bg-slate-800 hover:bg-slate-900 text-white px-8 py-3 rounded-full font-bold transition flex items-center shadow-lg"><i class="fas fa-play mr-2"></i> Play Audio</button>
+                <button onclick="window.speechSynthesis.cancel()" class="bg-gray-200 hover:bg-gray-300 text-gray-700 px-6 py-3 rounded-full font-bold transition"><i class="fas fa-stop"></i></button>
+            </div>
+            
+            <div class="mt-8 border-t pt-6 text-center">
+                <button onclick="startNoteTaking()" class="bg-blue-600 hover:bg-blue-700 text-white font-bold px-10 py-4 rounded-xl shadow-xl transform hover:scale-105 transition duration-200">
+                    Ready to Take Notes <i class="fas fa-arrow-right ml-2"></i>
+                </button>
+            </div>
+        </div>
+
+        <div id="step-notetaking" class="bg-white p-6 rounded-xl shadow-lg fade-in hidden">
+            <div class="flex justify-between items-center mb-4">
+                <h2 class="text-xl font-bold text-slate-700">Quick Summary</h2>
+                <div class="flex items-center">
+                    <i class="fas fa-stopwatch mr-2 text-gray-400"></i>
+                    <div id="timer" class="text-4xl font-mono font-bold text-slate-800">01:00</div>
+                </div>
+            </div>
+
+            <div class="mb-4">
+                <label class="text-xs font-bold text-gray-400 uppercase mb-1 block">Reference Article</label>
+                <div class="bg-blue-50 border border-blue-100 p-4 rounded-lg h-32 overflow-y-auto custom-scrollbar">
+                    <p id="noteReferenceText" class="text-sm text-slate-700 leading-relaxed"></p>
+                </div>
+            </div>
+
+            <p class="text-xs text-gray-500 mb-2 uppercase tracking-wide">Your Notes (Bullet Points)</p>
+            <textarea id="userNotes" class="w-full h-48 p-5 border-2 border-gray-200 rounded-lg font-mono text-sm focus:border-blue-500 focus:ring-0 outline-none resize-none bg-white" placeholder="- Key concept: ...&#10;- Important metric: ..."></textarea>
+            <button onclick="checkNotes()" class="mt-4 bg-red-600 hover:bg-red-700 text-white font-bold py-3 px-6 rounded-lg w-full shadow-md transition">Submit Notes</button>
+        </div>
+
+        <div id="step-qa" class="bg-white p-6 rounded-xl shadow-lg fade-in hidden">
+            <div class="mb-8">
+                <div class="flex items-center justify-between mb-2">
+                    <h3 class="font-bold text-gray-700 text-sm uppercase">AI Note Analysis</h3>
+                    <span id="noteScoreBadge" class="bg-gray-200 text-gray-700 text-xs px-2 py-1 rounded font-bold">Calculating...</span>
+                </div>
+                <div class="bg-gray-50 p-4 rounded-lg border border-gray-200">
+                    <p id="noteFeedback" class="text-gray-700 text-sm mb-2 font-medium"></p>
+                    <div class="h-1 w-full bg-gray-200 rounded-full overflow-hidden">
+                        <div id="noteProgressBar" class="h-full bg-green-500 w-0 transition-all duration-1000"></div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="relative bg-slate-800 p-6 rounded-xl shadow-lg mb-6 text-white">
+                <div class="absolute -top-3 -left-3 bg-yellow-500 text-slate-900 font-bold px-3 py-1 rounded text-xs shadow-sm transform -rotate-2">PM / CTO ASKS</div>
+                <i class="fas fa-quote-left text-slate-600 text-4xl absolute top-4 left-4 opacity-30"></i>
+                <p id="qaQuestion" class="text-xl font-medium relative z-10 leading-relaxed pl-6">"..."</p>
+            </div>
+
+            <textarea id="userAnswer" class="w-full h-32 p-4 border border-gray-300 rounded-lg outline-none focus:ring-2 focus:ring-purple-500 text-sm" placeholder="Type your answer professionally..."></textarea>
+            <button onclick="checkAnswer()" class="mt-4 bg-purple-600 hover:bg-purple-700 text-white font-bold py-3 px-6 rounded-lg w-full shadow-md transition">Submit Answer</button>
+        </div>
+
+        <div id="step-report" class="bg-white p-8 rounded-xl shadow-lg fade-in hidden">
+            <div class="text-center mb-8">
+                <div class="inline-block p-4 rounded-full bg-blue-50 mb-4">
+                    <i class="fas fa-clipboard-check text-4xl text-blue-600"></i>
+                </div>
+                <h2 class="text-3xl font-bold text-slate-800">Session Report</h2>
+            </div>
+            
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+                <div class="bg-gray-50 p-6 rounded-xl border border-gray-100 text-center flex flex-col justify-center">
+                    <span class="text-gray-500 text-xs uppercase tracking-widest">Total Score</span>
+                    <div class="text-6xl font-black text-slate-800 my-2" id="finalScore">0</div>
+                    <div id="scoreLabel" class="text-sm font-bold text-green-600">Great Job</div>
+                </div>
+                
+                <div class="space-y-3">
+                    <div class="bg-white border p-3 rounded-lg shadow-sm">
+                        <div class="text-xs text-gray-400 uppercase mb-1">Keywords Hit</div>
+                        <div id="reportKeywords" class="font-bold text-slate-700 text-sm"></div>
+                    </div>
+                    <div class="bg-white border p-3 rounded-lg shadow-sm">
+                        <div class="text-xs text-gray-400 uppercase mb-1">Fluency & Connectors</div>
+                        <div id="reportFluency" class="font-bold text-slate-700 text-sm"></div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="bg-yellow-50 p-5 rounded-xl border border-yellow-200 text-sm text-slate-700 mb-8">
+                <strong class="block text-yellow-800 mb-2"><i class="fas fa-lightbulb mr-1"></i> Improvement Advice:</strong>
+                <span id="reportAdvice"></span>
+            </div>
+
+            <button onclick="location.reload()" class="bg-slate-900 hover:bg-black text-white px-8 py-4 rounded-xl font-bold w-full transition shadow-lg flex justify-center items-center">
+                <i class="fas fa-redo-alt mr-2"></i> Next Random Topic
+            </button>
+        </div>
+
+    </div>
+
+    <script>
+        // ==========================================
+        // 5大精選題庫
+        // ==========================================
+        const database = [
+            {
+                id: 1,
+                title: "Backend: Load Balancing",
+                text: "A load balancer distributes incoming network traffic across multiple servers. This ensures that no single server bears too much demand. By spreading the work evenly, load balancing improves application responsiveness and increases availability. It can operate at Layer 4 (Transport) or Layer 7 (Application).",
+                keywords: ["distribute", "traffic", "server", "availability", "layer", "spread", "responsive"],
+                question: "If we use a Load Balancer, how do we handle session persistence (sticky sessions)?",
+                answer_keywords: ["sticky", "cookie", "session", "redis", "store", "cache", "shared"]
+            },
+            {
+                id: 2,
+                title: "API Design: REST vs GraphQL",
+                text: "REST is an architectural style that uses standard HTTP methods. However, it often leads to over-fetching or under-fetching of data. GraphQL solves this by allowing clients to request exactly the data they need in a single request. However, GraphQL adds complexity in caching and monitoring.",
+                keywords: ["http", "over-fetching", "under-fetching", "client", "request", "complexity", "cache"],
+                question: "In a mobile app with limited bandwidth, would you choose REST or GraphQL? Why?",
+                answer_keywords: ["graphql", "bandwidth", "network", "efficient", "single request", "payload"]
+            },
+            {
+                id: 3,
+                title: "Database: ACID Transactions",
+                text: "ACID stands for Atomicity, Consistency, Isolation, and Durability. Atomicity ensures that a transaction is treated as a single unit, which either succeeds completely or fails completely. This is critical in banking systems to prevent partial updates, like money being deducted from one account but not added to another.",
+                keywords: ["atomicity", "consistency", "isolation", "durability", "transaction", "fail", "succeed"],
+                question: "Can you explain 'Atomicity' using a simple real-world example?",
+                answer_keywords: ["bank", "transfer", "money", "all or nothing", "rollback", "partial"]
+            },
+            {
+                id: 4,
+                title: "DevOps: Docker vs VM",
+                text: "Virtual Machines (VMs) include a full guest operating system, making them heavy. Docker containers, on the other hand, share the host OS kernel and isolate the application processes. This makes containers much more lightweight and faster to start up compared to VMs.",
+                keywords: ["virtual machine", "guest os", "kernel", "share", "lightweight", "fast", "isolate"],
+                question: "Why does a Docker container start up much faster than a Virtual Machine?",
+                answer_keywords: ["kernel", "boot", "os", "operating system", "overhead", "process"]
+            },
+            {
+                id: 5,
+                title: "Soft Skills: Code Review",
+                text: "The goal of code review is to improve code quality, not to criticize the author. When giving feedback, comments should be constructive and objective. Instead of saying 'You made a mistake', try asking 'What was the reasoning behind this implementation?'. Focus on the code, not the person.",
+                keywords: ["quality", "constructive", "objective", "reasoning", "person", "improve", "feedback"],
+                question: "If a colleague disagrees with your code review comment, how should you handle it?",
+                answer_keywords: ["discuss", "standard", "guideline", "team", "consensus", "call", "chat"]
+            }
+        ];
+
+        let currentTopic = null;
+        let timerInterval;
+
+        function showStep(id) {
+            ['step-start', 'step-listening', 'step-notetaking', 'step-qa', 'step-report'].forEach(s => {
+                document.getElementById(s).classList.add('hidden');
+            });
+            document.getElementById(id).classList.remove('hidden');
+            window.scrollTo(0,0);
+        }
+
+        // 隨機選題
+        function startRandomSession() {
+            const randomIndex = Math.floor(Math.random() * database.length);
+            const topic = database[randomIndex];
+            
+            currentTopic = topic;
+            document.getElementById('currentTitle').innerText = topic.title;
+            document.getElementById('displayText').innerText = topic.text;
+            
+            // 初始狀態設定
+            document.getElementById('displayText').classList.add('blur-text');
+            document.getElementById('displayText').classList.remove('unblur-text');
+            document.getElementById('eyeIcon').className = "fas fa-eye";
+            document.getElementById('blurOverlay').classList.remove('hidden');
+
+            showStep('step-listening');
+        }
+
+        function toggleBlur() {
+            const textEl = document.getElementById('displayText');
+            const iconEl = document.getElementById('eyeIcon');
+            const overlayEl = document.getElementById('blurOverlay');
+
+            if (textEl.classList.contains('blur-text')) {
+                textEl.classList.remove('blur-text');
+                textEl.classList.add('unblur-text');
+                iconEl.className = "fas fa-eye-slash";
+                overlayEl.classList.add('hidden');
+            } else {
+                textEl.classList.remove('unblur-text');
+                textEl.classList.add('blur-text');
+                iconEl.className = "fas fa-eye";
+                overlayEl.classList.remove('hidden');
+            }
+        }
+
+        function playAudio() {
+            window.speechSynthesis.cancel();
+            const u = new SpeechSynthesisUtterance(currentTopic.text);
+            u.lang = "en-US";
+            u.rate = 0.9; 
+            window.speechSynthesis.speak(u);
+        }
+
+        function startNoteTaking() {
+            window.speechSynthesis.cancel();
+            
+            // NEW: 設定參考文章內容
+            document.getElementById('noteReferenceText').innerText = currentTopic.text;
+
+            showStep('step-notetaking');
+            let timeLeft = 60;
+            const timerEl = document.getElementById('timer');
+            
+            timerInterval = setInterval(() => {
+                timeLeft--;
+                timerEl.innerText = `00:${timeLeft < 10 ? '0'+timeLeft : timeLeft}`;
+                if (timeLeft <= 10) timerEl.classList.add('text-red-500');
+                if (timeLeft <= 0) {
+                    clearInterval(timerInterval);
+                    checkNotes();
+                }
+            }, 1000);
+        }
+
+        function checkNotes() {
+            clearInterval(timerInterval);
+            const notes = document.getElementById('userNotes').value.toLowerCase();
+            const targets = currentTopic.keywords;
+            
+            const hits = targets.filter(k => notes.includes(k.toLowerCase()));
+            const score = Math.round((hits.length / targets.length) * 100);
+
+            let feedback = "";
+            let colorClass = "";
+            if (score > 80) { feedback = "Excellent! High information capture rate."; colorClass="bg-green-500"; }
+            else if (score > 50) { feedback = "Good. You caught the main ideas."; colorClass="bg-yellow-500"; }
+            else { feedback = "A bit sparse. Focus on specific technical nouns."; colorClass="bg-red-500"; }
+
+            document.getElementById('noteFeedback').innerText = feedback;
+            document.getElementById('noteScoreBadge').innerText = score + "/100";
+            document.getElementById('noteScoreBadge').className = `text-xs px-2 py-1 rounded font-bold text-white ${colorClass}`;
+            document.getElementById('qaQuestion').innerText = currentTopic.question;
+            
+            setTimeout(() => {
+                const bar = document.getElementById('noteProgressBar');
+                bar.style.width = `${score}%`;
+                bar.className = `h-full ${colorClass}`;
+            }, 300);
+
+            showStep('step-qa');
+        }
+
+        function checkAnswer() {
+            const answer = document.getElementById('userAnswer').value.toLowerCase();
+            const targets = currentTopic.answer_keywords;
+            
+            const hits = targets.filter(k => answer.includes(k.toLowerCase()));
+            
+            let baseScore = 50;
+            let keywordBonus = hits.length * 15;
+            let lengthBonus = answer.length > 50 ? 10 : 0;
+            
+            let finalScore = baseScore + keywordBonus + lengthBonus;
+            if (finalScore > 100) finalScore = 100;
+            if (hits.length === 0 && answer.length < 10) finalScore = 20;
+
+            document.getElementById('finalScore').innerText = finalScore;
+            
+            const scoreLabel = document.getElementById('scoreLabel');
+            if(finalScore >= 90) { scoreLabel.innerText = "Outstanding!"; scoreLabel.className = "text-sm font-bold text-green-600"; }
+            else if(finalScore >= 70) { scoreLabel.innerText = "Solid Performance"; scoreLabel.className = "text-sm font-bold text-blue-600"; }
+            else { scoreLabel.innerText = "Needs Improvement"; scoreLabel.className = "text-sm font-bold text-red-600"; }
+
+            document.getElementById('reportKeywords').innerHTML = hits.length > 0 
+                ? `<span class="text-green-600"><i class="fas fa-check"></i> Found ${hits.length} key terms</span>` 
+                : `<span class="text-red-500"><i class="fas fa-times"></i> Missed key concepts</span>`;
+            
+            const connectors = ["because", "however", "so", "therefore", "although", "since"];
+            const hasConnectors = connectors.some(c => answer.includes(c));
+            document.getElementById('reportFluency').innerHTML = hasConnectors 
+                ? `<span class="text-green-600"><i class="fas fa-link"></i> Good sentence flow</span>` 
+                : `<span class="text-yellow-600"><i class="fas fa-exclamation-circle"></i> Try using connectors (e.g., 'because')</span>`;
+
+            const adviceEl = document.getElementById('reportAdvice');
+            if (hits.length === 0) {
+                adviceEl.innerText = "You missed the core answer. The interviewer was looking for words like: " + targets.slice(0, 4).join(", ") + ".";
+            } else if (finalScore < 80) {
+                adviceEl.innerText = "Your answer is correct but brief. Try to elaborate more using the 'Statement + Reason' structure.";
+            } else {
+                adviceEl.innerText = "Great answer! You used the correct terminology and explained the concept clearly. Keep it up!";
+            }
+
+            showStep('step-report');
+        }
+    </script>
+</body>
+</html>
